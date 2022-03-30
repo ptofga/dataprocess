@@ -7,12 +7,12 @@ import pandas as pd
 	
 window = Tk()
 window.title('数据处理')
-window.geometry('360x350') 
+window.geometry('400x500') 
 
 str_plate384filerequirement ="首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position384列,处理后的数据保存在Position384Output.csv"
 str_plate96filerequirement = "首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position96列，处理后的数据保存在Position96Output.csv"
 str_datascreeningfilerequirement = "文件表格的第一行必须要包含有Sequence/RawData/Position384/OriginalSequence四列，且RawData这一列需要是数字，处理后的数据保存在DataScreeningOutput.csv"
-
+str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
 ########数据筛选处理#############
 filename_list=[] 
 def chosescreeningfile():
@@ -161,7 +161,7 @@ def plate96process():
 	outdf.index = outdf.index + 1
 	outdf.to_csv("Position96Output.csv")
 	messagebox.showinfo('提醒',"处理完成")
-str_plate96filerequirement
+
 def plate96filerequirement() :
 	messagebox.showinfo('提醒',str_plate96filerequirement)
 	
@@ -173,5 +173,69 @@ ttk.Button(window, text="文件说明", command=plate96filerequirement).grid(col
 ttk.Button(window, text="选择文件", command=chose96file).grid(column=1, row=13)
 ttk.Button(window, text="处理文件", command=plate96process).grid(column=0, row=14)
 
+###########################384 screening ##################################
+def choserawdatafile():
+	filepath = filedialog.askopenfilenames(filetype=[("csv file","*.csv")])
+	filename_list.clear()
+	filename_list.append(filepath) 
+	
+	str_list= filename_list[0][0].split('/')	
+	lbrawdata.configure(text=str_list[-1])
+def rawdataprocess():
+
+	df = pd.read_csv(filename_list[0][0], header=None)
+	if v.get() ==1:
+		threshold= float(threshold384_entry.get())*df[23][20]
+	else :
+		threshold= float(threshold384_entry.get() )
+	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
+	plate384_list = []
+	plate96_list = []
+	rawdata_list =[]
+	for row in range(24,40) :
+		for col in range(3,23) :
+			if float(df[col][row])> threshold :
+				str_384 = "Plate "+df[0][0]+ " " +Alphabet_list[row-24] +str(col)
+				plate96=(int(df[0][0])-1)*4+1+(row%2 *2 +(col+1)%2)
+				
+				str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
+				plate384_list.append(str_384)
+				plate96_list.append(str_96)
+				rawdata_list.append(float(df[col][row]))
+				
+	outdf = pd.DataFrame( ) 
+	Plate384df = pd.DataFrame({'Position384':plate384_list}) 
+	Plate96df = pd.DataFrame({'Position96':plate96_list}) 
+	Performancedf = pd.DataFrame({'Performance':rawdata_list}) 
+
+	outdf['Position384']=Plate384df['Position384']
+	outdf['Position96']=Plate96df['Position96']
+	outdf['Performance']=Performancedf['Performance'] 
+
+	outdf.index = outdf.index + 1
+	outdf.to_csv("RawDataOutput.csv")
+	messagebox.showinfo('提醒',"处理完成")
+	
+def rawdataprocessfilerequirement() :
+	messagebox.showinfo('提醒',str_rawdataprocessfilerequirement)
+	
+	
+ttk.Label(window,  text="读取384数据" ).grid(column=0, row=18) 
+v= IntVar()
+ttk.Radiobutton(window, text ="倍数",variable=v,value =1).grid(column=0,row= 19)
+ttk.Radiobutton(window, text ="数值",variable=v,value =2).grid(column=1,row= 19)
+v.set(1)
+
+threshold384_entry=ttk.Entry(window,width = 8 )
+threshold384_entry.grid(column=2, row=19) 
+threshold384_entry.insert(0,"5")
+
+ttk.Label(window, text="文件名：").grid(column=0, row=20) 
+lbrawdata =ttk.Label(window, text=" ")
+lbrawdata.grid(column=1, row=20)
+
+ttk.Button(window, text="文件说明", command=rawdataprocessfilerequirement).grid(column=0, row=21)
+ttk.Button(window, text="选择文件", command=choserawdatafile).grid(column=1, row=21)
+ttk.Button(window, text="处理文件", command=rawdataprocess).grid(column=0, row=22)
 
 window.mainloop() 
