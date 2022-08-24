@@ -135,19 +135,34 @@ def chose96file():
 	lb96.configure(text=str_list[-1])
 def plate96process():
 
-	df = pd.read_csv(filename_list[0][0]) 
-
+	df = pd.read_csv(filename_list[0][0])
 	compound_df = pd.read_csv('Compound.csv')
 	MOLENAME_list = []
 	MolWt_list = []
 	cas_list =[]
 	for (index, row) in df.iterrows():
+		flag=False
 		for (j, r) in compound_df.iterrows() : 
 			if row.Position96 == (r['Plate location']) : 
 				MOLENAME_list.append(r.MOLENAME)
 				MolWt_list.append(r.MolWt)
 				cas_list.append('#'+r.cas)
-	
+				flag = True
+			else :
+				str=row.Position96
+				strlist=str.split('-')
+				if(len(strlist[1]))==2 :
+					str2=str[:-1]+'0'+str[-1:]
+					if str2 == (r['Plate location']) : 
+						MOLENAME_list.append(r.MOLENAME)
+						MolWt_list.append(r.MolWt)
+						cas_list.append('#'+r.cas)
+						flag = True
+				
+		if flag ==False :
+			MOLENAME_list.append("null")
+			MolWt_list.append("null")
+			cas_list.append("null")
 	outdf = pd.DataFrame( ) 
 	MOLENAMEdf = pd.DataFrame({'MOLENAME':MOLENAME_list}) 
 	MolWtdf = pd.DataFrame({'MolWt':MolWt_list}) 
