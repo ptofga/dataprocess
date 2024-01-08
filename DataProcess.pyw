@@ -8,13 +8,13 @@ from statistics import mean, stdev
 	
 window = Tk()
 window.title('数据处理')
-window.geometry('400x530') 
+window.geometry('400x550')  
 
 str_plate384filerequirement ="首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position384列,处理后的数据保存在Position384Output.csv"
 str_plate96filerequirement = "首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position96列，处理后的数据保存在Position96Output.csv"
 str_datascreeningfilerequirement = "文件表格的第一行必须要包含有Sequence/RawData/Position384/OriginalSequence四列，且RawData这一列需要是数字，处理后的数据保存在DataScreeningOutput.csv"
 str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
-str_multirawdataprocessfilerequirement = "384孔板号输出原始数据xlsx文件"
+str_multirawdataprocessfilerequirement = "选择384孔板号原始数据xlsx文件,CV位置为C20，输出的文件为MultiRawDataOutput.csv"
 ########数据筛选处理#############
 filename_list=[] 
 def chosescreeningfile():
@@ -307,15 +307,25 @@ def multirawdataprocess():
 			threshold= float(mthreshold384_entry.get() )
 		
 		for row in range(24,40) :
-			for col in range(4,23) :
-				if float(sheet.cell(row,col).value)> threshold :
-					str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1)
-					plate96=(int(sheet.cell(1,1).value)-1)*4+1+(row%2 *2 +(col+1)%2)
-					
-					str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
-					plate384_list.append(str_384)
-					plate96_list.append(str_96)
-					rawdata_list.append(float(sheet.cell(row,col).value))
+			for col in range(4,24) :
+				if mv2.get() == 1: 
+					if float(sheet.cell(row,col).value)> threshold :
+						str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1)
+						plate96=(int(sheet.cell(1,1).value)-1)*4+1+(row%2 *2 +(col+1)%2)
+						
+						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
+						plate384_list.append(str_384)
+						plate96_list.append(str_96)
+						rawdata_list.append(float(sheet.cell(row,col).value))
+				else : 
+					if float(sheet.cell(row,col).value)<= threshold :
+						str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1)
+						plate96=(int(sheet.cell(1,1).value)-1)*4+1+(row%2 *2 +(col+1)%2)
+						
+						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
+						plate384_list.append(str_384)
+						plate96_list.append(str_96)
+						rawdata_list.append(float(sheet.cell(row,col).value))
 				
 	outdf = pd.DataFrame( ) 
 	Plate384df = pd.DataFrame({'Position384':plate384_list}) 
@@ -333,10 +343,9 @@ def multirawdataprocess():
 	messagebox.showinfo('提醒',"处理完成")
 	
 def multirawdataprocessfilerequirement() :
-	messagebox.showinfo('提醒',str_rawdataprocessfilerequirement)
-	
-	
-ttk.Label(window,  text="读取多个384数据" ).grid(column=0, row=23) 
+	messagebox.showinfo('提醒',str_multirawdataprocessfilerequirement)
+	 
+ttk.Label(window,  text="多功能384数据" ).grid(column=0, row=23) 
 mv= IntVar()
 ttk.Radiobutton(window, text ="倍数",variable=mv,value =1).grid(column=0,row= 24)
 ttk.Radiobutton(window, text ="数值",variable=mv,value =2).grid(column=1,row= 24)
@@ -346,12 +355,17 @@ mthreshold384_entry=ttk.Entry(window,width = 8 )
 mthreshold384_entry.grid(column=2, row=24) 
 mthreshold384_entry.insert(0,"5")
 
-ttk.Label(window, text="文件名：").grid(column=0, row=25) 
-lbmultirawdata =ttk.Label(window, text=" ")
-lbmultirawdata.grid(column=1, row=25)
+mv2= IntVar()
+ttk.Radiobutton(window, text ="大于",variable=mv2,value =1).grid(column=0,row= 25)
+ttk.Radiobutton(window, text ="小于等于",variable=mv2,value =2).grid(column=1,row= 25)
+mv2.set(1)
 
-ttk.Button(window, text="文件说明", command=multirawdataprocessfilerequirement).grid(column=0, row=26)
-ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(column=1, row=26)
-ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=27)
+ttk.Label(window, text="文件名：").grid(column=0, row=26) 
+lbmultirawdata =ttk.Label(window, text=" ")
+lbmultirawdata.grid(column=1, row=26)
+
+ttk.Button(window, text="文件说明", command=multirawdataprocessfilerequirement).grid(column=0, row=27)
+ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(column=1, row=27)
+ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=28)
 
 window.mainloop() 
