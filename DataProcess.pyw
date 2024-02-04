@@ -3,20 +3,26 @@ from tkinter import ttk
 from tkinter import messagebox
 from tkinter import filedialog
 import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import load_workbook,Workbook
 from statistics import mean, stdev
-	
-window = Tk()
-window.title('数据处理')
-window.geometry('400x550')  
+import os 
 
-str_plate384filerequirement ="首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position384列,处理后的数据保存在Position384Output.csv"
-str_plate96filerequirement = "首先当前目录需要一个化合物Compound.csv文件，compound文件须包含MOLENAME/Plate location/cas/MolWt四列，同时这个文件设置成UTF8格式的，然后要处理的文件包含Position96列，处理后的数据保存在Position96Output.csv"
+window = Tk()
+window.title('数据处理 v2.0.0')
+window.geometry('400x690')  
+
+str_plate384filerequirement ="首先当前目录需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,处理后的数据保存在Position384Output.csv"
+str_plate96filerequirement = "首先当前目录需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position96列，处理后的数据保存在PositionOutput.csv"
 str_datascreeningfilerequirement = "文件表格的第一行必须要包含有Sequence/RawData/Position384/OriginalSequence四列，且RawData这一列需要是数字，处理后的数据保存在DataScreeningOutput.csv"
 str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
-str_multirawdataprocessfilerequirement = "选择384孔板号原始数据xlsx文件,CV位置为C20，输出的文件为MultiRawDataOutput.csv"
+str_multirawdataprocessfilerequirement = "该模板可处理多工作表原始数据，并在原始表格中生成运算结果；该模板为Activation%的计算公式;选择384孔板号原始数据xlsx文件;CV位置为C20;输出的文件为MultiRawDataOutput.csv"
+str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件"
+
+
 ########数据筛选处理#############
 filename_list=[] 
+comp_filename_list = []
+
 def chosescreeningfile():
 	filepath = filedialog.askopenfilenames(filetype=[("csv file","*.csv")])
 	filename_list.clear()
@@ -45,7 +51,7 @@ def datascreening():
 def datascreeningfilerequirement():
 	messagebox.showinfo('文件要求',str_datascreeningfilerequirement)
 	
-ttk.Label(window,justify="left", text="384板数据筛选" ).grid(column=0, row=0)
+ttk.Label(window,justify="left", text="SPR-384板数据筛选" ).grid(column=0, row=0)
 ttk.Label(window, justify="left",text="文件名：").grid(column=0, row=1) 
 lbfile =ttk.Label(window, text=" ")
 lbfile.grid(column=1, row=1)
@@ -67,16 +73,33 @@ def chose384file():
 	
 	str_list= filename_list[0][0].split('/')	
 	lb384.configure(text=str_list[-1])
+def chose384compoundfile():
+	filepath = filedialog.askopenfilenames(filetype=[("xlsx file","*.xlsx")])
+	comp_filename_list.clear()
+	comp_filename_list.append(filepath) 
+	
+	str_list= comp_filename_list[0][0].split('/')	
+	lb384comp.configure(text=str_list[-1])
+
 def plate384to96():
 	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
 	plate96_list = []
 	df = pd.read_csv(filename_list[0][0]) 
 
-	compound_df = pd.read_csv('Compound.csv')
+	#compound_df = pd.read_csv('Compound.csv')
+
+	comp_wb = load_workbook(comp_filename_list[0][0])
+	data = comp_wb.active.values
+	columns = next(data)[0:]
+	compound_df = pd.DataFrame(data, columns=columns) 
 
 	MOLENAME_list = []
 	MolWt_list = []
 	cas_list =[]
+	Bioactivity_list = []
+	Formula_list = []
+	Status_list = []
+	Reference_list = []
 	for (index, row) in df.iterrows():
 		str_list=row.Position384.split()
 		PlateNo = int(str_list[1])
@@ -94,22 +117,39 @@ def plate384to96():
 				MOLENAME_list.append(r.MOLENAME)
 				MolWt_list.append(r.MolWt)
 				cas_list.append('#'+r.cas)
+				Bioactivity_list.append(r.Bioactivity)
+				Formula_list.append(r.Formula)
+				Status_list.append(r.Status)
+				Reference_list.append(r.Reference)
 				flag=True
 		
 		if flag == False :
 			MOLENAME_list.append("n/a")
 			MolWt_list.append("n/a")
 			cas_list.append("n/a")
+			Bioactivity_list.append("n/a")
+			Formula_list.append("n/a")
+			Status_list.append("n/a")
+			Reference_list.append("n/a")
 			
 	outdf = pd.DataFrame({'Position96':plate96_list}) 
 	MOLENAMEdf = pd.DataFrame({'MOLENAME':MOLENAME_list}) 
 	MolWtdf = pd.DataFrame({'MolWt':MolWt_list}) 
 	casdf = pd.DataFrame({'cas':cas_list}) 
+	Bioactivitydf = pd.DataFrame({'Bioactivity':Bioactivity_list})
+	Formuladf = pd.DataFrame({'Formula':Formula_list})
+	Statusdf = pd.DataFrame({'Status':Status_list})
+	Referencedf = pd.DataFrame({'Reference':Reference_list})
 
 	outdf['Position384']=df['Position384']
 	outdf['MOLENAME']=MOLENAMEdf['MOLENAME']
 	outdf['MolWt']=MolWtdf['MolWt']
 	outdf['cas']=casdf['cas']
+	outdf['Bioactivity']=Bioactivitydf['Bioactivity']
+	outdf['Formula']=Formuladf['Formula']
+	outdf['Status']=Statusdf['Status']
+	outdf['Reference']=Referencedf['Reference']
+
 
 	outdf.index = outdf.index + 1
 	outdf.to_csv("Position384Output.csv")
@@ -119,13 +159,19 @@ def plate384filerequirement() :
 	messagebox.showinfo('提醒',str_plate384filerequirement)
 	
 ttk.Label(window, text="384板转96板" ).grid(column=0, row=6) 
-ttk.Label(window, text="文件名：").grid(column=0, row=8) 
+ttk.Label(window, text="文件名：").grid(column=0, row=9) 
 lb384 =ttk.Label(window, text=" ")
-lb384.grid(column=1, row=8)
+lb384.grid(column=1, row=9)
 
-ttk.Button(window, text="文件说明", command=plate384filerequirement).grid(column=0, row=9)
-ttk.Button(window, text="选择文件", command=chose384file).grid(column=1, row=9)
-ttk.Button(window, text="处理文件", command=plate384to96).grid(column=0, row=10)
+ttk.Label(window, text="文件名：").grid(column=0, row=8) 
+lb384comp =ttk.Label(window, text=" ")
+lb384comp.grid(column=1, row=8)
+
+ttk.Button(window, text="选择文件", command=chose384file).grid(column=1, row=10)
+ttk.Button(window, text="Compound", command=chose384compoundfile).grid(column=0, row=10)
+ttk.Button(window, text="文件说明", command=plate384filerequirement).grid(column=0, row=11)
+ttk.Button(window, text="处理文件", command=plate384to96).grid(column=1, row=11)
+
 
 ###################96板处理#####################
 def chose96file():
@@ -135,60 +181,105 @@ def chose96file():
 	
 	str_list= filename_list[0][0].split('/')	
 	lb96.configure(text=str_list[-1])
-def plate96process():
+def chosecompoundfile():
+	filepath = filedialog.askopenfilenames(filetype=[("xlsx file","*.xlsx")])
+	comp_filename_list.clear()
+	comp_filename_list.append(filepath) 
+	
+	str_list= comp_filename_list[0][0].split('/')	
+	lbcomp.configure(text=str_list[-1])
 
+def plate96process():
+	
 	df = pd.read_csv(filename_list[0][0])
-	compound_df = pd.read_csv('Compound.csv')
+
+	comp_wb = load_workbook(comp_filename_list[0][0])
+	data = comp_wb.active.values
+	columns = next(data)[0:]
+	compound_df = pd.DataFrame(data, columns=columns) 
+	#compound_df = pd.read_csv('Compound.csv')
 	MOLENAME_list = []
 	MolWt_list = []
 	cas_list =[]
+	Bioactivity_list = []
+	Formula_list = []
+	Status_list = []
+	Reference_list = []
+
 	for (index, row) in df.iterrows():
 		flag=False
 		for (j, r) in compound_df.iterrows() : 
-			if row.Position96 == (r['Plate location']) : 
+			if row.Position == (r['Plate location']) : 
 				MOLENAME_list.append(r.MOLENAME)
 				MolWt_list.append(r.MolWt)
-				cas_list.append('#'+r.cas)
+				cas_list.append('#'+str(r.cas))
+				Bioactivity_list.append(r.Bioactivity)
+				Formula_list.append(r.Formula)
+				Status_list.append(r.Status)
+				Reference_list.append(r.Reference)
+
 				flag = True
 			else :
-				str=row.Position96
-				strlist=str.split('-')
+				str1=row.Position
+				strlist=str1.split('-')
 				if(len(strlist[1]))==2 :
-					str2=str[:-1]+'0'+str[-1:]
+					str2=str1[:-1]+'0'+str1[-1:]
 					if str2 == (r['Plate location']) : 
 						MOLENAME_list.append(r.MOLENAME)
 						MolWt_list.append(r.MolWt)
-						cas_list.append('#'+r.cas)
+						cas_list.append('#'+str(r.cas))
+						Bioactivity_list.append(r.Bioactivity)
+						Formula_list.append(r.Formula)
+						Status_list.append(r.Status)
+						Reference_list.append(r.Reference)
 						flag = True
 				
 		if flag ==False :
 			MOLENAME_list.append("null")
 			MolWt_list.append("null")
 			cas_list.append("null")
+			Bioactivity_list.append("null")
+			Formula_list.append("null")
+			Status_list.append("null")
+			Reference_list.append("null")
+
 	outdf = pd.DataFrame( ) 
 	MOLENAMEdf = pd.DataFrame({'MOLENAME':MOLENAME_list}) 
 	MolWtdf = pd.DataFrame({'MolWt':MolWt_list}) 
 	casdf = pd.DataFrame({'cas':cas_list}) 
+	Bioactivitydf = pd.DataFrame({'Bioactivity':Bioactivity_list})
+	Formuladf = pd.DataFrame({'Formula':Formula_list})
+	Statusdf = pd.DataFrame({'Status':Status_list})
+	Referencedf = pd.DataFrame({'Reference':Reference_list})
 
-	outdf['Position96']=df['Position96']
+	outdf['Position']=df['Position']
 	outdf['MOLENAME']=MOLENAMEdf['MOLENAME']
 	outdf['MolWt']=MolWtdf['MolWt']
 	outdf['cas']=casdf['cas']
+	outdf['Bioactivity']=Bioactivitydf['Bioactivity']
+	outdf['Formula']=Formuladf['Formula']
+	outdf['Status']=Statusdf['Status']
+	outdf['Reference']=Referencedf['Reference']
 
 	outdf.index = outdf.index + 1
-	outdf.to_csv("Position96Output.csv")
+	outdf.to_csv("PositionOutput.csv")
 	messagebox.showinfo('提醒',"处理完成")
 
 def plate96filerequirement() :
 	messagebox.showinfo('提醒',str_plate96filerequirement)
 	
-ttk.Label(window, text="96板处理" ).grid(column=0, row=11) 
-ttk.Label(window, text="文件名：").grid(column=0, row=12) 
+ttk.Label(window, text="化合物信息输出" ).grid(column=0, row=12) 
+
+ttk.Label(window, text="文件名：").grid(column=0, row=13) 
+lbcomp =ttk.Label(window, text=" ")
+lbcomp.grid(column=1, row=13)
+ttk.Label(window, text="文件名：").grid(column=0, row=14) 
 lb96 =ttk.Label(window, text=" ")
-lb96.grid(column=1, row=12)
-ttk.Button(window, text="文件说明", command=plate96filerequirement).grid(column=0, row=13)
-ttk.Button(window, text="选择文件", command=chose96file).grid(column=1, row=13)
-ttk.Button(window, text="处理文件", command=plate96process).grid(column=0, row=14)
+lb96.grid(column=1, row=14)
+ttk.Button(window, text="文件说明", command=plate96filerequirement).grid(column=0, row=16)
+ttk.Button(window, text="Compound", command=chosecompoundfile).grid(column=0, row=15)
+ttk.Button(window, text="选择板号文件", command=chose96file).grid(column=1, row=15)
+ttk.Button(window, text="处理文件", command=plate96process).grid(column=1, row=16)
 
 ###########################384 screening ##################################
 def choserawdatafile():
@@ -237,7 +328,7 @@ def rawdataprocessfilerequirement() :
 	messagebox.showinfo('提醒',str_rawdataprocessfilerequirement)
 	
 	
-ttk.Label(window,  text="读取384数据" ).grid(column=0, row=18) 
+ttk.Label(window,  text="读取384 CSV 数据" ).grid(column=0, row=18) 
 v= IntVar()
 ttk.Radiobutton(window, text ="倍数",variable=v,value =1).grid(column=0,row= 19)
 ttk.Radiobutton(window, text ="数值",variable=v,value =2).grid(column=1,row= 19)
@@ -345,7 +436,7 @@ def multirawdataprocess():
 def multirawdataprocessfilerequirement() :
 	messagebox.showinfo('提醒',str_multirawdataprocessfilerequirement)
 	 
-ttk.Label(window,  text="多功能384数据" ).grid(column=0, row=23) 
+ttk.Label(window,  text="多功能384数据处理" ).grid(column=0, row=23) 
 mv= IntVar()
 ttk.Radiobutton(window, text ="倍数",variable=mv,value =1).grid(column=0,row= 24)
 ttk.Radiobutton(window, text ="数值",variable=mv,value =2).grid(column=1,row= 24)
@@ -367,5 +458,38 @@ lbmultirawdata.grid(column=1, row=26)
 ttk.Button(window, text="文件说明", command=multirawdataprocessfilerequirement).grid(column=0, row=27)
 ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(column=1, row=27)
 ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=28)
+########################################处理原始数据###########################################################################
+dir_path = ''
+save_excel_file = 'save.xlsx'
 
+def rawfilerequirement() :
+	messagebox.showinfo('提醒',str_extractrawdataprocessfilerequirement)
+
+def choosedirectory():
+	global dir_path
+	dir_path = filedialog.askdirectory() 	
+	str_list= dir_path.split('/')	
+	lbexatrctrawdata.configure(text=str_list[-1])
+
+def rawfileprocess():
+	wb_write = Workbook() 
+	for path in os.listdir(dir_path):
+		if os.path.isfile(os.path.join(dir_path,path)):
+			wb_read=load_workbook(os.path.join(dir_path,path))
+			ws_temp = wb_write.create_sheet(path[:-5])
+			for r in range(17):
+				for c in range(25):
+					ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+36, column=c+1).value
+	del wb_write['Sheet']
+	wb_write.save(save_excel_file)
+	messagebox.showinfo('提醒',"处理完成")
+
+ttk.Label(window,  text="提取原始数据" ).grid(column=0, row=29) 
+ttk.Label(window, text="目录名：").grid(column=0, row=30) 
+lbexatrctrawdata =ttk.Label(window, text=" ")
+lbexatrctrawdata.grid(column=1, row=30)
+
+ttk.Button(window, text="模块说明", command=rawfilerequirement).grid(column=0, row=31)
+ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, row=31)
+ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=32)
 window.mainloop() 
