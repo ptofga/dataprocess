@@ -8,15 +8,15 @@ from statistics import mean, stdev
 import os 
 
 window = Tk()
-window.title('数据处理 v2.0.0')
+window.title('数据处理 v2.0.2')
 window.geometry('400x690')  
 
-str_plate384filerequirement ="首先当前目录需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,处理后的数据保存在Position384Output.csv"
-str_plate96filerequirement = "首先当前目录需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position96列，处理后的数据保存在PositionOutput.csv"
+str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
+str_plate96filerequirement = "首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position列，该列格式为：1-A3,处理后的数据保存在PositionOutput.csv"
 str_datascreeningfilerequirement = "文件表格的第一行必须要包含有Sequence/RawData/Position384/OriginalSequence四列，且RawData这一列需要是数字，处理后的数据保存在DataScreeningOutput.csv"
 str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
 str_multirawdataprocessfilerequirement = "该模板可处理多工作表原始数据，并在原始表格中生成运算结果；该模板为Activation%的计算公式;选择384孔板号原始数据xlsx文件;CV位置为C20;输出的文件为MultiRawDataOutput.csv"
-str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件"
+str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件,文件夹内文件名的要求如下：每个文件名的格式均需统一，必须只能含有一个“-”，且在“-”之后一定要连接384板号，两位数形式，例如第1块板即为-01"
 
 
 ########数据筛选处理#############
@@ -116,7 +116,7 @@ def plate384to96():
 			if str_96 == (r['Plate location']) : 
 				MOLENAME_list.append(r.MOLENAME)
 				MolWt_list.append(r.MolWt)
-				cas_list.append('#'+r.cas)
+				cas_list.append('#'+str(r.cas))
 				Bioactivity_list.append(r.Bioactivity)
 				Formula_list.append(r.Formula)
 				Status_list.append(r.Status)
@@ -460,7 +460,7 @@ ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(colu
 ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=28)
 ########################################处理原始数据###########################################################################
 dir_path = ''
-save_excel_file = 'save.xlsx'
+save_excel_file = 'rawdata-collection.xlsx'
 
 def rawfilerequirement() :
 	messagebox.showinfo('提醒',str_extractrawdataprocessfilerequirement)
@@ -470,16 +470,22 @@ def choosedirectory():
 	dir_path = filedialog.askdirectory() 	
 	str_list= dir_path.split('/')	
 	lbexatrctrawdata.configure(text=str_list[-1])
+def gettablenum(filepath):
+	i= filepath.find('-')	
+	return filepath[i+1:i+3]
 
 def rawfileprocess():
 	wb_write = Workbook() 
 	for path in os.listdir(dir_path):
 		if os.path.isfile(os.path.join(dir_path,path)):
 			wb_read=load_workbook(os.path.join(dir_path,path))
-			ws_temp = wb_write.create_sheet(path[:-5])
+			tabnum = gettablenum(path)
+			ws_temp = wb_write.create_sheet(tabnum)
+			
 			for r in range(17):
 				for c in range(25):
 					ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+36, column=c+1).value
+			ws_temp['A1'] = tabnum
 	del wb_write['Sheet']
 	wb_write.save(save_excel_file)
 	messagebox.showinfo('提醒',"处理完成")
