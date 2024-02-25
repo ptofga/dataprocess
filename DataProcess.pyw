@@ -9,8 +9,8 @@ import os
 import sys
 
 window = Tk()
-window.title('数据处理 v2.2')
-window.geometry('400x715')  
+window.title('数据处理 v3.0')
+window.geometry('400x735')  
 
 str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
 str_plate96filerequirement = "首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position列，该列格式为：1-A3,处理后的数据保存在PositionOutput.csv"
@@ -19,7 +19,7 @@ str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
 str_multirawdataprocessfilerequirement = "该模板可处理多工作表原始数据，并在原始表格中生成运算结果；该模板为Activation%的计算公式;选择384孔板号原始数据xlsx文件;CV位置为C20;输出的文件为MultiRawDataOutput.csv"
 str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件,文件夹内文件名的要求如下：每个文件名的格式均需统一，必须只能含有一个“-”，且在“-”之后一定要连接384板号，两位数形式，例如第1块板即为-01"
 
-sys.stderr = open('error.log','w')
+#sys.stderr = open('error.log','w')
 
 ########数据筛选处理#############
 filename_list=[] 
@@ -219,7 +219,6 @@ def plate96process():
 				Formula_list.append(r.Formula)
 				Status_list.append(r.Status)
 				Reference_list.append(r.Reference)
-
 				flag = True
 			else :
 				str1=row.Position
@@ -431,11 +430,32 @@ def multirawdataprocess():
 	outdf['Performance']=Performancedf['Performance'] 
 
 	outdf.index = outdf.index + 1
-	outdf.to_csv("MultiRawDataOutput.csv")
+	if mv3.get() == 2 :
+		filter384holeno(outdf).to_csv("MultiRawDataOutput.csv")
+	else : 
+		outdf.to_csv("MultiRawDataOutput.csv")
 
 	wb.save(filepath)
 	messagebox.showinfo('提醒',"处理完成")
-	
+def filter384holeno(df):
+	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
+	df = pd.read_csv('MultiRawDataOutput.csv')
+	outdf = pd.DataFrame(columns = ['','Position384','Position96','Performance'])
+	for index, row in df.iterrows() : 
+		list_384 = row.Position384.split(' ')
+		
+		Alphabet_index = Alphabet_list.index(list_384[2][0])
+		if Alphabet_index %2 ==0 :
+			#find if another related plate no exist
+			# 
+			pair_plate = str(list_384[0])+' '+str(list_384[1])+' '+Alphabet_list[Alphabet_index+1]+str(list_384[2][1:]) 
+			for i, row2 in df.iterrows() :
+				if pair_plate == row2.Position384 :
+					outdf = outdf.append(df.loc[index].copy(), ignore_index=True)
+					print(i)
+					break 
+	#print (outdf) 
+	return outdf
 def multirawdataprocessfilerequirement() :
 	messagebox.showinfo('提醒',str_multirawdataprocessfilerequirement)
 	 
@@ -454,13 +474,19 @@ ttk.Radiobutton(window, text ="大于",variable=mv2,value =1).grid(column=0,row=
 ttk.Radiobutton(window, text ="小于等于",variable=mv2,value =2).grid(column=1,row= 25)
 mv2.set(1)
 
-ttk.Label(window, text="文件名：").grid(column=0, row=26) 
-lbmultirawdata =ttk.Label(window, text=" ")
-lbmultirawdata.grid(column=1, row=26)
+mv3= IntVar()
+ttk.Radiobutton(window, text ="4x96",variable=mv3,value =1).grid(column=0,row= 26)
+ttk.Radiobutton(window, text ="    2x96",variable=mv3,value =2).grid(column=1,row= 26)
+mv3.set(1)
 
-ttk.Button(window, text="文件说明", command=multirawdataprocessfilerequirement).grid(column=0, row=27)
-ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(column=1, row=27)
-ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=28)
+
+ttk.Label(window, text="文件名：").grid(column=0, row=27) 
+lbmultirawdata =ttk.Label(window, text=" ")
+lbmultirawdata.grid(column=1, row=27)
+
+ttk.Button(window, text="文件说明", command=multirawdataprocessfilerequirement).grid(column=0, row=28)
+ttk.Button(window, text="选择文件", command=chosemultirawdatafile).grid(column=1, row=28)
+ttk.Button(window, text="处理文件", command=multirawdataprocess).grid(column=0, row=29)
 ########################################处理原始数据###########################################################################
 dir_path = ''
 save_excel_file = 'rawdata-collection.xlsx'
@@ -500,20 +526,20 @@ def rawfileprocess():
 	wb_write.save(save_excel_file)
 	messagebox.showinfo('提醒',"处理完成")
 
-ttk.Label(window,  text="提取原始数据" ).grid(column=0, row=29) 
-ttk.Label(window, text="目录名：").grid(column=0, row=30) 
+ttk.Label(window,  text="提取原始数据" ).grid(column=0, row=50) 
+ttk.Label(window, text="目录名：").grid(column=0, row=51) 
 lbexatrctrawdata =ttk.Label(window, text=" ")
-lbexatrctrawdata.grid(column=1, row=30)
+lbexatrctrawdata.grid(column=1, row=51)
 
-ttk.Button(window, text="模块说明", command=rawfilerequirement).grid(column=0, row=31)
-ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, row=31)
-ttk.Label(window,justify="left", text="首行数：" ).grid(column=2, row=31)
+ttk.Button(window, text="模块说明", command=rawfilerequirement).grid(column=0, row=52)
+ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, row=52)
+ttk.Label(window,justify="left", text="首行数：" ).grid(column=2, row=52)
 line_entry=ttk.Entry(window,width = 8 )
-line_entry.grid(column=3, row=31) 
+line_entry.grid(column=3, row=52) 
 line_entry.insert(0,"36")
 filetypeRB= IntVar()
-ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 32)
-ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 32)
+ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 53)
+ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 53)
 filetypeRB.set(1)
-ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=33)
+ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=54)
 window.mainloop() 
