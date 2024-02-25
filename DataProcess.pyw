@@ -6,10 +6,11 @@ import pandas as pd
 from openpyxl import load_workbook,Workbook
 from statistics import mean, stdev
 import os 
+import sys
 
 window = Tk()
-window.title('数据处理 v2.0.2')
-window.geometry('400x690')  
+window.title('数据处理 v2.2')
+window.geometry('400x715')  
 
 str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
 str_plate96filerequirement = "首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position列，该列格式为：1-A3,处理后的数据保存在PositionOutput.csv"
@@ -18,6 +19,7 @@ str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
 str_multirawdataprocessfilerequirement = "该模板可处理多工作表原始数据，并在原始表格中生成运算结果；该模板为Activation%的计算公式;选择384孔板号原始数据xlsx文件;CV位置为C20;输出的文件为MultiRawDataOutput.csv"
 str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件,文件夹内文件名的要求如下：每个文件名的格式均需统一，必须只能含有一个“-”，且在“-”之后一定要连接384板号，两位数形式，例如第1块板即为-01"
 
+sys.stderr = open('error.log','w')
 
 ########数据筛选处理#############
 filename_list=[] 
@@ -296,12 +298,15 @@ def rawdataprocess():
 		threshold= float(threshold384_entry.get())*float(df[2][20])
 	else :
 		threshold= float(threshold384_entry.get() )
+	
+	print("threshold = {}".format(threshold))
 	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
 	plate384_list = []
 	plate96_list = []
 	rawdata_list =[]
 	for row in range(24,40) :
 		for col in range(3,23) :
+			#print("row = {} col={} value = {}  threshold = {}".format(row,col,float(df[col][row]),threshold))
 			if float(df[col][row])> threshold :
 				str_384 = "Plate "+df[0][0]+ " " +Alphabet_list[row-24] +str(col)
 				plate96=(int(df[0][0])-1)*4+1+(row%2 *2 +(col+1)%2)
@@ -376,7 +381,7 @@ def multirawdataprocess():
 		num_list = []
 		for column in [3,24]:
 			for row in range(2,18): 
-				num_list.append(sheet.cell(row,column).value)
+				num_list.append(float(sheet.cell(row,column).value))
 		sheet['C18'].value = mean(num_list)
 		sheet['C19'].value = stdev(num_list)
 		sheet['C20'].value = stdev(num_list)/mean(num_list)*100
@@ -389,7 +394,7 @@ def multirawdataprocess():
 			sheet.cell(row,1).value = sheet.cell(row-22,1).value
 		for row in range(24,40):
 			for column in range(3,25):
-				sheet.cell(row,column).value = (sheet.cell(row-22,column).value/mean(num_list) - 1)*100
+				sheet.cell(row,column).value = (float(sheet.cell(row-22,column).value)/mean(num_list) - 1)*100
 
 		# df = pd.read_csv(filename_list[0][0], header=None)
 		if mv.get() ==1:
@@ -402,18 +407,16 @@ def multirawdataprocess():
 				if mv2.get() == 1: 
 					if float(sheet.cell(row,col).value)> threshold :
 						str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1)
-						plate96=(int(sheet.cell(1,1).value)-1)*4+1+(row%2 *2 +(col+1)%2)
-						
-						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
+						plate96=(int(sheet.cell(1,1).value)-1)*4+1+((row)%2 *2 +(col)%2)   
+						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int(col/2))
 						plate384_list.append(str_384)
 						plate96_list.append(str_96)
 						rawdata_list.append(float(sheet.cell(row,col).value))
 				else : 
 					if float(sheet.cell(row,col).value)<= threshold :
-						str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1)
-						plate96=(int(sheet.cell(1,1).value)-1)*4+1+(row%2 *2 +(col+1)%2)
-						
-						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int((col+1)/2))
+						str_384 = "Plate "+str(sheet.cell(1,1).value)+ " " +Alphabet_list[row-24] +str(col-1) 
+						plate96=(int(sheet.cell(1,1).value)-1)*4+1+((row)%2 *2 +(col)%2)
+						str_96= str(plate96)+"-"+Alphabet_list[int((row-24)/2)]+str(int(col/2))
 						plate384_list.append(str_384)
 						plate96_list.append(str_96)
 						rawdata_list.append(float(sheet.cell(row,col).value))
@@ -478,13 +481,20 @@ def rawfileprocess():
 	wb_write = Workbook() 
 	for path in os.listdir(dir_path):
 		if os.path.isfile(os.path.join(dir_path,path)):
-			wb_read=load_workbook(os.path.join(dir_path,path))
+			if filetypeRB.get() == 1:
+				wb_read=load_workbook(os.path.join(dir_path,path))
+			else : 
+				wb_read = pd.read_csv(os.path.join(dir_path,path),header=None) 
+
 			tabnum = gettablenum(path)
 			ws_temp = wb_write.create_sheet(tabnum)
-			
+			line = int(line_entry.get())
 			for r in range(17):
 				for c in range(25):
-					ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+36, column=c+1).value
+					if filetypeRB.get() == 1:
+						ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+line, column=c+1).value
+					else : 
+						ws_temp.cell(row=r+1, column=c+1).value = wb_read.iloc[r+line-1, c]
 			ws_temp['A1'] = tabnum
 	del wb_write['Sheet']
 	wb_write.save(save_excel_file)
@@ -497,5 +507,13 @@ lbexatrctrawdata.grid(column=1, row=30)
 
 ttk.Button(window, text="模块说明", command=rawfilerequirement).grid(column=0, row=31)
 ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, row=31)
-ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=32)
+ttk.Label(window,justify="left", text="首行数：" ).grid(column=2, row=31)
+line_entry=ttk.Entry(window,width = 8 )
+line_entry.grid(column=3, row=31) 
+line_entry.insert(0,"36")
+filetypeRB= IntVar()
+ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 32)
+ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 32)
+filetypeRB.set(1)
+ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=33)
 window.mainloop() 
