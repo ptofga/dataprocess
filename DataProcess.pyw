@@ -8,7 +8,7 @@ from statistics import mean, stdev
 import os 
 import sys
 window = Tk()
-window.title('数据处理 v4.0')
+window.title('数据处理 v4.1')
 window.geometry('450x735')  
 
 str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
@@ -541,7 +541,7 @@ def rawfileprocess():
 	for path in os.listdir(dir_path):
 		if os.path.isfile(os.path.join(dir_path,path)):
 			
-			line = int(line_entry.get())
+			line = int(line_entry.get())-1
 
 			if filetypeRB.get() == 1:
 				wb_read=load_workbook(os.path.join(dir_path,path))
@@ -583,7 +583,7 @@ ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, 
 ttk.Label(window,justify="left", text="首行数：" ).grid(column=2, row=52)
 line_entry=ttk.Entry(window,width = 8 )
 line_entry.grid(column=3, row=52) 
-line_entry.insert(0,"14")
+line_entry.insert(0,"15")
 filetypeRB= IntVar()
 ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 53)
 ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 53)
