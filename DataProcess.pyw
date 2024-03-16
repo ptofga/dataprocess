@@ -7,19 +7,18 @@ from openpyxl import load_workbook,Workbook
 from statistics import mean, stdev
 import os 
 import sys
-
 window = Tk()
-window.title('数据处理 v3.0')
-window.geometry('400x735')  
+window.title('数据处理 v4.0')
+window.geometry('450x735')  
 
 str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
 str_plate96filerequirement = "首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列,然后要处理的文件包含Position列，该列格式为：1-A3,处理后的数据保存在PositionOutput.csv"
 str_datascreeningfilerequirement = "文件表格的第一行必须要包含有Sequence/RawData/Position384/OriginalSequence四列，且RawData这一列需要是数字，处理后的数据保存在DataScreeningOutput.csv"
 str_rawdataprocessfilerequirement = "384孔板号输出原始数据cvs文件"
 str_multirawdataprocessfilerequirement = "该模板可处理多工作表原始数据，并在原始表格中生成运算结果；该模板为Activation%的计算公式;选择384孔板号原始数据xlsx文件;CV位置为C20;输出的文件为MultiRawDataOutput.csv"
-str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件,文件夹内文件名的要求如下：每个文件名的格式均需统一，必须只能含有一个“-”，且在“-”之后一定要连接384板号，两位数形式，例如第1块板即为-01"
+str_extractrawdataprocessfilerequirement = "该模块是提取同一目录所有原始数据文件，汇集到同一个excel文件,文件夹内文件名的要求如下：每个文件名的格式均需统一，必须只能含有一个“_”，且在“_”之后一定要连接384板号，两位数形式，例如第1块板即为_01"
 
-#sys.stderr = open('error.log','w')
+sys.stderr = open('error.log','w')
 
 ########数据筛选处理#############
 filename_list=[] 
@@ -134,7 +133,7 @@ def plate384to96():
 			Status_list.append("n/a")
 			Reference_list.append("n/a")
 			
-	outdf = pd.DataFrame({'Position96':plate96_list}) 
+	outdf = pd.DataFrame({'Position':plate96_list}) 
 	MOLENAMEdf = pd.DataFrame({'MOLENAME':MOLENAME_list}) 
 	MolWtdf = pd.DataFrame({'MolWt':MolWt_list}) 
 	casdf = pd.DataFrame({'cas':cas_list}) 
@@ -317,11 +316,11 @@ def rawdataprocess():
 				
 	outdf = pd.DataFrame( ) 
 	Plate384df = pd.DataFrame({'Position384':plate384_list}) 
-	Plate96df = pd.DataFrame({'Position96':plate96_list}) 
+	Plate96df = pd.DataFrame({'Position':plate96_list}) 
 	Performancedf = pd.DataFrame({'Performance':rawdata_list}) 
 
 	outdf['Position384']=Plate384df['Position384']
-	outdf['Position96']=Plate96df['Position96']
+	outdf['Position']=Plate96df['Position']
 	outdf['Performance']=Performancedf['Performance'] 
 
 	outdf.index = outdf.index + 1
@@ -422,25 +421,58 @@ def multirawdataprocess():
 				
 	outdf = pd.DataFrame( ) 
 	Plate384df = pd.DataFrame({'Position384':plate384_list}) 
-	Plate96df = pd.DataFrame({'Position96':plate96_list}) 
+	Plate96df = pd.DataFrame({'Position':plate96_list}) 
 	Performancedf = pd.DataFrame({'Performance':rawdata_list}) 
 
 	outdf['Position384']=Plate384df['Position384']
-	outdf['Position96']=Plate96df['Position96']
+	outdf['Position']=Plate96df['Position']
 	outdf['Performance']=Performancedf['Performance'] 
 
-	outdf.index = outdf.index + 1
+	#outdf.index = outdf.index + 1
 	if mv3.get() == 2 :
-		filter384holeno(outdf).to_csv("MultiRawDataOutput.csv")
+		filter384doublehole(outdf).to_csv("MultiRawDataOutput.csv")
+	elif mv3.get() == 3:
+		filter384quadhole(outdf,3).to_csv("MultiRawDataOutput.csv")
+	elif mv3.get() == 4:
+		filter384quadhole(outdf,2).to_csv("MultiRawDataOutput.csv")
 	else : 
 		outdf.to_csv("MultiRawDataOutput.csv")
 
 	wb.save(filepath)
 	messagebox.showinfo('提醒',"处理完成")
-def filter384holeno(df):
+def filter384quadhole(df,num):
 	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
-	df = pd.read_csv('MultiRawDataOutput.csv')
-	outdf = pd.DataFrame(columns = ['','Position384','Position96','Performance'])
+	#df = pd.read_csv('MultiRawDataOutput.csv')
+	outdf = pd.DataFrame(columns = ['Position384','Position','Performance'])
+	for index, row in df.iterrows() : 
+		list_384 = row.Position384.split(' ')
+		
+		Alphabet_index = Alphabet_list.index(list_384[2][0])
+		#odd alphabet and odd no. 
+		if Alphabet_index %2 ==0 and int(list_384[2][1:])%2 !=0 :
+			#find if another related plate no exist
+			# 
+			#plate 01
+			pair_plate01 = str(list_384[0])+' '+str(list_384[1])+' '+Alphabet_list[Alphabet_index]+str(int(list_384[2][1:])+1) 
+			#plate 10
+			pair_plate10 = str(list_384[0])+' '+str(list_384[1])+' '+Alphabet_list[Alphabet_index+1]+str(list_384[2][1:]) 
+			#plate 11
+			pair_plate11 = str(list_384[0])+' '+str(list_384[1])+' '+Alphabet_list[Alphabet_index+1]+str(int(list_384[2][1:])+1) 
+			
+			pair_number =0
+			for i, row2 in df.iterrows() :
+				if pair_plate01 == row2.Position384 or pair_plate10 == row2.Position384 or pair_plate11 == row2.Position384 :
+					pair_number+=1
+			if pair_number >=num :        
+				outdf = outdf._append(df.loc[index].copy(), ignore_index=True)
+					##print(i)
+					#break 
+	return outdf 
+def filter384doublehole(df):
+	Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
+	#df = pd.read_csv('MultiRawDataOutput.csv')
+	outdf = pd.DataFrame(columns = ['Position384','Position','Performance'])
+	
 	for index, row in df.iterrows() : 
 		list_384 = row.Position384.split(' ')
 		
@@ -451,10 +483,9 @@ def filter384holeno(df):
 			pair_plate = str(list_384[0])+' '+str(list_384[1])+' '+Alphabet_list[Alphabet_index+1]+str(list_384[2][1:]) 
 			for i, row2 in df.iterrows() :
 				if pair_plate == row2.Position384 :
-					outdf = outdf.append(df.loc[index].copy(), ignore_index=True)
-					print(i)
+					outdf=outdf._append(df.loc[index].copy(), ignore_index=True) 
 					break 
-	#print (outdf) 
+	 
 	return outdf
 def multirawdataprocessfilerequirement() :
 	messagebox.showinfo('提醒',str_multirawdataprocessfilerequirement)
@@ -477,6 +508,8 @@ mv2.set(1)
 mv3= IntVar()
 ttk.Radiobutton(window, text ="4x96",variable=mv3,value =1).grid(column=0,row= 26)
 ttk.Radiobutton(window, text ="    2x96",variable=mv3,value =2).grid(column=1,row= 26)
+ttk.Radiobutton(window, text ="  1x96(4/4)",variable=mv3,value =3).grid(column=2,row= 26)
+ttk.Radiobutton(window, text ="   1x96(3/4)",variable=mv3,value =4).grid(column=3,row= 26)
 mv3.set(1)
 
 
@@ -500,26 +533,40 @@ def choosedirectory():
 	str_list= dir_path.split('/')	
 	lbexatrctrawdata.configure(text=str_list[-1])
 def gettablenum(filepath):
-	i= filepath.find('-')	
+	i= filepath.find('_')	
 	return filepath[i+1:i+3]
 
 def rawfileprocess():
 	wb_write = Workbook() 
 	for path in os.listdir(dir_path):
 		if os.path.isfile(os.path.join(dir_path,path)):
+			
+			line = int(line_entry.get())
+
 			if filetypeRB.get() == 1:
 				wb_read=load_workbook(os.path.join(dir_path,path))
+			elif filetypeRB.get()==3: #process txt
+				with open(os.path.join(dir_path,path), 'r', encoding='utf-8') as f:    
+					wb_read = []
+					txtlines = f.readlines()
+					for i in range(line,line+17):
+						txtline = txtlines[i].split(txtlines[line][0])
+						txtline = txtline[:-1]
+						wb_read.append(txtline)
+				
 			else : 
-				wb_read = pd.read_csv(os.path.join(dir_path,path),header=None) 
-
+				wb_read = pd.read_csv(os.path.join(dir_path,path) , header=None ) 				
+				#print(wb_read)
 			tabnum = gettablenum(path)
 			ws_temp = wb_write.create_sheet(tabnum)
-			line = int(line_entry.get())
 			for r in range(17):
 				for c in range(25):
-					if filetypeRB.get() == 1:
+					if filetypeRB.get() == 1: #xlsx
 						ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+line, column=c+1).value
-					else : 
+					elif filetypeRB.get() ==3: #txt
+						#print("r={}---c={}".format(r,c))
+						ws_temp.cell(row=r+1, column=c+1).value = wb_read[r][c]
+					else : #csv
 						ws_temp.cell(row=r+1, column=c+1).value = wb_read.iloc[r+line-1, c]
 			ws_temp['A1'] = tabnum
 	del wb_write['Sheet']
@@ -536,10 +583,11 @@ ttk.Button(window, text="选择目录", command=choosedirectory).grid(column=1, 
 ttk.Label(window,justify="left", text="首行数：" ).grid(column=2, row=52)
 line_entry=ttk.Entry(window,width = 8 )
 line_entry.grid(column=3, row=52) 
-line_entry.insert(0,"36")
+line_entry.insert(0,"14")
 filetypeRB= IntVar()
 ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 53)
 ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 53)
-filetypeRB.set(1)
+ttk.Radiobutton(window, text ="txt",variable=filetypeRB,value =3).grid(column=2,row= 53)
+filetypeRB.set(3)
 ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=54)
 window.mainloop() 
