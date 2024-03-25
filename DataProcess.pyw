@@ -8,7 +8,7 @@ from statistics import mean, stdev
 import os 
 import sys
 window = Tk()
-window.title('数据处理 v4.1')
+window.title('数据处理 v4.2')
 window.geometry('450x735')  
 
 str_plate384filerequirement ="首先需要一个化合物Compound.xlsx文件，compound文件须包含MOLENAME/Plate location/cas/MolWt/Bioactivity/Formula/Status/Reference 列，然后要处理的文件包含Position384列,，该列格式为：Plate1 O9,处理后的数据保存在Position384Output.csv"
@@ -532,45 +532,106 @@ def choosedirectory():
 	dir_path = filedialog.askdirectory() 	
 	str_list= dir_path.split('/')	
 	lbexatrctrawdata.configure(text=str_list[-1])
+
 def gettablenum(filepath):
 	i= filepath.find('_')	
+	if i <0 : 
+		messagebox.showinfo('提醒',"文件名没有包含_")
+		return "00"
 	return filepath[i+1:i+3]
 
-def rawfileprocess():
-	wb_write = Workbook() 
-	for path in os.listdir(dir_path):
-		if os.path.isfile(os.path.join(dir_path,path)):
-			
-			line = int(line_entry.get())-1
+def is_number_in_list(lst):
+    return all(isinstance(item, int) for item in lst)
 
-			if filetypeRB.get() == 1:
-				wb_read=load_workbook(os.path.join(dir_path,path))
-			elif filetypeRB.get()==3: #process txt
-				with open(os.path.join(dir_path,path), 'r', encoding='utf-8') as f:    
-					wb_read = []
-					txtlines = f.readlines()
-					for i in range(line,line+17):
-						txtline = txtlines[i].split(txtlines[line][0])
-						txtline = txtline[:-1]
-						wb_read.append(txtline)
+def is_float_in_list(lst):
+    return all(isinstance(item, float) for item in lst)
+
+def all_elements_equal(lst):
+    return all(x == lst[0] for x in lst)
+
+def rawfileprocess():
+	# process R-C data 
+	if filetypeRB.get() == 4:	
+		Alphabet_list = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P']
+		plate_list = []
+		valid_column_list = []
+		valid_data_list = []
+		column_flag =True
+		for path in os.listdir(dir_path):
+			if os.path.isfile(os.path.join(dir_path,path)):
+				plate_list.append(gettablenum(path))
+				df = pd.read_csv(os.path.join(dir_path,path))
+				df_list = df.columns.to_list()
+				column_list = df_list[df_list.index('Column')+1:]				
 				
-			else : 
-				wb_read = pd.read_csv(os.path.join(dir_path,path) , header=None ) 				
-				#print(wb_read)
-			tabnum = gettablenum(path)
-			ws_temp = wb_write.create_sheet(tabnum)
-			for r in range(17):
-				for c in range(25):
-					if filetypeRB.get() == 1: #xlsx
-						ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+line, column=c+1).value
-					elif filetypeRB.get() ==3: #txt
-						#print("r={}---c={}".format(r,c))
-						ws_temp.cell(row=r+1, column=c+1).value = wb_read[r][c]
-					else : #csv
-						ws_temp.cell(row=r+1, column=c+1).value = wb_read.iloc[r+line-1, c]
-			ws_temp['A1'] = tabnum
-	del wb_write['Sheet']
-	wb_write.save(save_excel_file)
+				# get valid column.
+				for column in column_list :
+					temp_list = df[column].to_list()
+					if all_elements_equal(temp_list)==False and (is_number_in_list(temp_list) or is_float_in_list(temp_list)): 
+						valid_data_list.append(temp_list)
+						if column_flag:
+							valid_column_list.append(column)
+				column_flag =False
+		
+		# save data to xlsx 
+		for file_index, filename in enumerate(valid_column_list):
+			wb_write = Workbook()
+
+			for index, sheet in enumerate(plate_list) :
+				ws_temp = wb_write.create_sheet(sheet)
+				ws_temp['A1'] = sheet
+
+				 # write 1 2 3 .... 24
+				for i in range(24):
+					ws_temp.cell(row=1, column=i+2).value = i+1
+				# write alphabe list
+				for j in range(16):
+					ws_temp.cell(row=j+2, column=1).value = Alphabet_list[j]
+				# wirte valid data
+				current_list = valid_data_list[index*len(valid_column_list)+file_index]
+
+				for r in range(16):
+					for c in range(24):                
+						ws_temp.cell(row=r+2, column=c+2).value =current_list[r*24+c]
+			del wb_write['Sheet']
+			wb_write.save(filename.split('-')[0]+'-rawdata-collection.xlsx')
+
+	else:
+	
+		wb_write = Workbook() 
+		for path in os.listdir(dir_path):
+			if os.path.isfile(os.path.join(dir_path,path)):
+				
+				line = int(line_entry.get())-1
+
+				if filetypeRB.get() == 1:
+					wb_read=load_workbook(os.path.join(dir_path,path))
+				elif filetypeRB.get()==3: #process txt
+					with open(os.path.join(dir_path,path), 'r', encoding='utf-8') as f:    
+						wb_read = []
+						txtlines = f.readlines()
+						for i in range(line,line+17):
+							txtline = txtlines[i].split(txtlines[line][0])
+							txtline = txtline[:-1]
+							wb_read.append(txtline)
+					
+				else : 
+					wb_read = pd.read_csv(os.path.join(dir_path,path) , header=None ) 				
+					#print(wb_read)
+				tabnum = gettablenum(path)
+				ws_temp = wb_write.create_sheet(tabnum)
+				for r in range(17):
+					for c in range(25):
+						if filetypeRB.get() == 1: #xlsx
+							ws_temp.cell(row=r+1, column=c+1).value = wb_read.active.cell(row=r+line, column=c+1).value
+						elif filetypeRB.get() ==3: #txt
+							#print("r={}---c={}".format(r,c))
+							ws_temp.cell(row=r+1, column=c+1).value = wb_read[r][c]
+						else : #csv
+							ws_temp.cell(row=r+1, column=c+1).value = wb_read.iloc[r+line-1, c]
+				ws_temp['A1'] = tabnum
+		del wb_write['Sheet']
+		wb_write.save(save_excel_file)
 	messagebox.showinfo('提醒',"处理完成")
 
 ttk.Label(window,  text="提取原始数据" ).grid(column=0, row=50) 
@@ -588,6 +649,7 @@ filetypeRB= IntVar()
 ttk.Radiobutton(window, text ="xlsx",variable=filetypeRB,value =1).grid(column=0,row= 53)
 ttk.Radiobutton(window, text ="csv",variable=filetypeRB,value =2).grid(column=1,row= 53)
 ttk.Radiobutton(window, text ="txt",variable=filetypeRB,value =3).grid(column=2,row= 53)
+ttk.Radiobutton(window, text ="R-C",variable=filetypeRB,value =4).grid(column=3,row= 53)
 filetypeRB.set(3)
 ttk.Button(window, text="处理文件", command=rawfileprocess).grid(column=0, row=54)
 window.mainloop() 
